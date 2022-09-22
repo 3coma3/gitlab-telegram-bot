@@ -168,8 +168,10 @@ def formatRepoUpdateMsg(data):
                 elif not int('0x' + change['after'], 0):
                     msg = msg + 'removed branch *"{0}"*\n'.format(refName)
 
+                # can't tell appart commit pushes and other branch
+                # modifications, so ignore
                 else:
-                    msg = msg + 'changed branch *"{0}"*\n'.format(refName)
+                    pass
 
             else:
                 msg = msg + 'update with unknown ref type\n'

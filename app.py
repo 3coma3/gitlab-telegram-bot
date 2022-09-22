@@ -250,13 +250,13 @@ def formatMergeRequestMsg(data):
                             attrs['target_branch'])
 
         if 'assignees' in data['changes']:
-            msg = msg + 'Assignees were changed\n'
+            msg = msg + '• Assignees were changed\n'
 
         if 'labels' in data['changes']:
-            msg = msg + 'Labels were changed\n'
+            msg = msg + '• Labels were changed\n'
 
         if 'discussion_locked' in data['changes']:
-            msg = msg + 'The discussion was locked \n'
+            msg = msg + '• The discussion was locked \n'
 
     elif action == 'close':
         msg = msg + '*{0}* closed the merge request *{1}* from *{2}* into *{3}*\n'\
@@ -294,13 +294,13 @@ def formatIssueMsg(data):
     elif action == 'update':
         msg = msg + '*{0}* updated issue *{1}*\n'.format(data['user']['name'], attrs['id'])
         if 'assignees' in data['changes']:
-            msg = msg + 'Assignees were changed\n'
+            msg = msg + '• Assignees were changed\n'
 
         if 'labels' in data['changes']:
-            msg = msg + 'Labels were changed\n'
+            msg = msg + '• Labels were changed\n'
 
         if 'discussion_locked' in data['changes']:
-            msg = msg + 'The discussion was locked \n'
+            msg = msg + '• The discussion was locked \n'
 
     elif action == 'close':
         msg = msg + '*{0}* closed issue *{1}*\n'\

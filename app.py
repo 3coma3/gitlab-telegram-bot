@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import json
+import re
+
 from flask import Flask
 from flask import request
 from flask import jsonify
@@ -22,13 +24,16 @@ class GitlabBot(Bot):
         except:
             open('chats', 'w').write(json.dumps(self.chats))
 
-        self.send_to_all('Hi !')
+        self.send_to_all('Hi!')
 
     def text_recv(self, txt, chatid):
         ''' registering chats '''
         txt = txt.strip()
         if txt.startswith('/'):
             txt = txt[1:]
+
+        print(txt)
+
         if txt == self.authmsg:
             if str(chatid) in self.chats:
                 self.reply(chatid, "\U0001F60E  boy, you already got the power.")
@@ -36,10 +41,12 @@ class GitlabBot(Bot):
                 self.reply(chatid, "\U0001F60E  Ok boy, you got the power !")
                 self.chats[chatid] = True
                 open('chats', 'w').write(json.dumps(self.chats))
+
         elif txt == 'shutupbot':
             del self.chats[chatid]
             self.reply(chatid, "\U0001F63F Ok, take it easy\nbye.")
             open('chats', 'w').write(json.dumps(self.chats))
+
         else:
             self.reply(chatid, "\U0001F612 I won't talk to you.")
 
@@ -63,9 +70,54 @@ def webhook():
         event = data['event_name']
     else:
         event = '(could not detect the type)'
+
+    if event == 'repository_update':
+        msg = formatRepoUpdateMsg(data)
+
     b.send_to_all(msg)
     return jsonify({'status': 'ok'})
 
+# this generic event is called from the webooks set by admins (info seems to lack)
+def formatRepoUpdateMsg(data):
+    msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
+
+    msg = msg + '*{0}* {1}'\
+            .format(data['user_name'],\
+                    'issued multiple changes\n\n' if len(data['changes']) > 1 else '')
+
+    for change in data['changes']:
+        if 'ref' in change:
+            refType = re.search(r'/([^/]+)/[^/]+$', change['ref']).group(1)
+            refName = re.search(r'/([^/]+)$', change['ref']).group(1)
+
+            if refType == 'tags' and len(data['changes']) > 1:
+                if not int('0x' + change['before'], 0):
+                    msg = msg + 'tagged object [{0}]({1}/-/commit/{0}) with tag *"{2}"*\n'\
+                                .format(change['after'],\
+                                        data['project']['web_url'].replace("_", "\_"),\
+                                        refName)
+                else:
+                    msg = msg + 'removed tag *"{0}"* from object [{1}]({2}/-/commit/{1})\n'\
+                                .format(refName,\
+                                        change['after'],\
+                                        data['project']['web_url']).replace("_", "\_")
+
+            elif refType == 'heads':
+                if not int('0x' + change['before'], 0):
+                    msg = msg + 'created branch [{0}]({1}/-/tree/{0})\n'\
+                                .format(refName,\
+                                        data['project']['web_url']).replace("_", "\_")
+
+                elif not int('0x' + change['after'], 0):
+                    msg = msg + 'removed branch *"{0}"*\n'.format(refName)
+
+                else:
+                    msg = msg + 'changed branch *"{0}"*\n'.format(refName)
+
+            else:
+                msg = msg + 'update with unknown ref type\n'
+
+    return msg
 
 def generatePushMsg(data):
     msg = '*{0} ({1}) - {2} new commits*\n'\

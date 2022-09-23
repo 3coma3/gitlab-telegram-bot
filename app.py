@@ -103,6 +103,10 @@ def webhook():
         msg = formatUserMsg(data)
     elif event == 'user_remove_from_group':
         msg = formatUserMsg(data)
+    elif event == 'key_create':
+        msg = formatKeyMsg(data)
+    elif event == 'key_destroy':
+        msg = formatKeyMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -394,13 +398,18 @@ def formatUserMsg(data):
 
     return msg
 
-def generateMergeRequestMsg(data):
-    return 'new MergeRequest'
+def formatKeyMsg(data):
+    action = data['event_name']
 
+    if action == 'key_create':
+        msg = '*{0}* has created an SSH key with type {1}'\
+                .format(data['username'],\
+                        re.search(r'^ssh-([^ ]+) ', data['key']).group(1))
 
-def generateWikiMsg(data):
-    return 'new wiki stuff'
+    if action == 'key_destroy':
+        msg = '*{0}* has removed an SSH key' .format(data['username'])
 
+    return msg
 
 def generatePipelineMsg(data):
     return 'new pipeline stuff'

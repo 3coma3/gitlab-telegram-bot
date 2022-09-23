@@ -107,6 +107,16 @@ def webhook():
         msg = formatKeyMsg(data)
     elif event == 'key_destroy':
         msg = formatKeyMsg(data)
+    elif event == 'project_create':
+        msg = formatProjectMsg(data)
+    elif event == 'project_update':
+        msg = formatProjectMsg(data)
+    elif event == 'project_rename':
+        msg = formatProjectMsg(data)
+    elif event == 'project_transfer':
+        msg = formatProjectMsg(data)
+    elif event == 'project_destroy':
+        msg = formatProjectMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -411,12 +421,41 @@ def formatKeyMsg(data):
 
     return msg
 
-def generatePipelineMsg(data):
-    return 'new pipeline stuff'
+def formatProjectMsg(data):
+    msg = '*{0}*\n\n'.format(re.search(r'^([^/]+)/.*$', data['path_with_namespace']).group(1))
 
+    action = data['event_name']
 
-def generateBuildMsg(data):
-    return 'new build stuff'
+    if action in ['project_create', 'project_update']:
+        msg = msg + 'Project *{0}* has been {1}d\n\npath: {2}\nvisibility: {3}\nowners: {4}'\
+                    .format(data['name'],\
+                            re.search(r'^.*_([^_]+)$', action).group(1),\
+                            data['path_with_namespace'],\
+                            data['project_visibility'],\
+                            ", ".join([owner['name'] for owner in data.get('owners', [])]))
+
+        for owner in data.get('owners', []):
+            msg = msg + owner['name'] + ' ' + (owner['email'] if owner['email'] else '') + '\n'
+
+    if action == 'project_rename':
+        msg = msg + 'Project *{0}* path *{1}* has been renamed to *{2}*\n'\
+                    .format(data['name'],\
+                            re.search(r'^.*/([^/]+)$', data['old_path_with_namespace']).group(1),\
+                            data['path'])
+
+    if action == 'project_transfer':
+        msg = msg + 'Project *{0}* has been transferred from *{1}*\n\nold path: {2}\nnew path: {3}'\
+                    .format(data['name'],\
+                            re.search(r'^([^/]+)/.*$', data['old_path_with_namespace']).group(1),\
+                            data['old_path_with_namespace'],\
+                            data['path_with_namespace'])
+
+    if action == 'project_destroy':
+        msg = msg + 'Project *{0}* has been destroyed\n\npath was: {1}\n'\
+                    .format(data['name'],\
+                            data['path_with_namespace'])
+
+    return msg
 
 
 if __name__ == "__main__":

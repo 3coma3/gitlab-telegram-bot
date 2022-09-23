@@ -34,9 +34,11 @@ class Bot:
         pass
 
     def updates(self):
-        data = {'offset': self.offset}
-        r = self.botq('getUpdates', data)
+        r = self.botq('getUpdates', {'offset': self.offset})
+
         for up in r['result']:
+            self.offset = up['update_id'] + 1
+
             if 'message' in up:
                 self.msg_recv(up['message'])
             elif 'edited_message' in up:
@@ -48,10 +50,10 @@ class Bot:
             try:
                 txt = up['message']['text']
                 self.text_recv(txt, self.get_to_from_msg(up['message']))
+
             except:
                 pass
-            self.offset = up['update_id']
-            self.offset += 1
+
         open('offset', 'w').write('%s' % self.offset)
 
     def get_to_from_msg(self, msg):
@@ -65,6 +67,7 @@ class Bot:
     def reply(self, to, msg):
         if type(to) not in [int, str]:
             to = self.get_to_from_msg(to)
+
         resp = self.botq('sendMessage', {'chat_id': to, 'text': msg, 'disable_web_page_preview': True, 'parse_mode': 'Markdown'})
         return resp
 

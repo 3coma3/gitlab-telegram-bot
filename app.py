@@ -75,6 +75,8 @@ def webhook():
         msg = formatRepoUpdateMsg(data)
     elif event == 'push':
         msg = formatPushMsg(data)
+    elif event == 'tag_push':
+        msg = formatTagPushMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -140,6 +142,26 @@ def formatPushMsg(data):
 
     return msg
 
+def formatTagPushMsg(data):
+    msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
+
+    refName = re.search(r'/([^/]+)$', data['ref']).group(1)
+
+    if not int('0x' + data['before'], 0):
+        msg = msg + '*{0}* tagged object [{1}]({2}) with tag *"{3}"*\n\n'\
+                    .format(data['user_name'],\
+                            data['checkout_sha'],\
+                            data['commits'][0]['url'].replace("_", "\_"),\
+                            refName)
+
+    else:
+        msg = msg + '*{0}* removed tag *"{1}"* from object [{2}]({3}/-/commit/{2})\n'\
+                    .format(data['user_name'],\
+                            refName,\
+                            data['before'],\
+                            data['project']['web_url'].replace("_", "\_"))
+
+    return msg
 
 def generateIssueMsg(data):
     action = data['object_attributes']['action']

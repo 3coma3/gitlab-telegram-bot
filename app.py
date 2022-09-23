@@ -47,13 +47,13 @@ class GitlabBot(Bot):
         for c in self.chats:
             self.reply(c, msg)
 
-
 b = GitlabBot()
-
 
 @app.route("/", methods=['GET', 'POST'])
 def webhook():
     data = request.json
+
+    print('DEBUG =================\n' + json.dumps(data, indent=2))
 
     if 'object_kind' in data:
         event = data['object_kind']

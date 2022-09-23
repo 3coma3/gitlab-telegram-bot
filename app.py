@@ -54,26 +54,15 @@ b = GitlabBot()
 @app.route("/", methods=['GET', 'POST'])
 def webhook():
     data = request.json
-    # json contains an attribute that differenciates between the types, see
-    # https://docs.gitlab.com/ce/user/project/integrations/webhooks.html
-    # for more infos
-    kind = data['object_kind']
-    if kind == 'push':
-        msg = generatePushMsg(data)
-    elif kind == 'tag_push':
-        msg = generatePushMsg(data)  # TODO:Make own function for this
-    elif kind == 'issue':
-        msg = generateIssueMsg(data)
-    elif kind == 'note':
-        msg = generateCommentMsg(data)
-    elif kind == 'merge_request':
-        msg = generateMergeRequestMsg(data)
-    elif kind == 'wiki_page':
-        msg = generateWikiMsg(data)
-    elif kind == 'pipeline':
-        msg = generatePipelineMsg(data)
-    elif kind == 'build':
-        msg = generateBuildMsg(data)
+
+    if 'object_kind' in data:
+        event = data['object_kind']
+    elif 'event_type' in data:
+        event = data['event_type']
+    elif 'event_name' in data:
+        event = data['event_name']
+    else:
+        event = '(could not detect the type)'
     b.send_to_all(msg)
     return jsonify({'status': 'ok'})
 

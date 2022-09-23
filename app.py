@@ -9,6 +9,7 @@ from flask import jsonify
 from bot import Bot
 app = Flask(__name__)
 
+
 class GitlabBot(Bot):
     def __init__(self):
         try:
@@ -54,7 +55,9 @@ class GitlabBot(Bot):
         for c in self.chats:
             self.reply(c, msg)
 
-b = GitlabBot()
+
+bot = GitlabBot()
+
 
 @app.route("/", methods=['GET', 'POST'])
 def webhook():
@@ -120,7 +123,7 @@ def webhook():
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
-    b.send_to_all(msg)
+    bot.send_to_all(msg)
     return jsonify({'status': 'ok'})
 
 # this generic event is called from the webooks set by admins (info seems to lack)
@@ -439,25 +442,25 @@ def formatProjectMsg(data):
 
     if action == 'project_rename':
         msg = msg + 'Project *{0}* path *{1}* has been renamed to *{2}*\n'\
-                    .format(data['name'],\
-                            re.search(r'^.*/([^/]+)$', data['old_path_with_namespace']).group(1),\
+                    .format(data['name'],
+                            re.search(r'^.*/([^/]+)$', data['old_path_with_namespace']).group(1),
                             data['path'])
 
     if action == 'project_transfer':
         msg = msg + 'Project *{0}* has been transferred from *{1}*\n\nold path: {2}\nnew path: {3}'\
-                    .format(data['name'],\
-                            re.search(r'^([^/]+)/.*$', data['old_path_with_namespace']).group(1),\
-                            data['old_path_with_namespace'],\
+                    .format(data['name'],
+                            re.search(r'^([^/]+)/.*$', data['old_path_with_namespace']).group(1),
+                            data['old_path_with_namespace'],
                             data['path_with_namespace'])
 
     if action == 'project_destroy':
         msg = msg + 'Project *{0}* has been destroyed\n\npath was: {1}\n'\
-                    .format(data['name'],\
+                    .format(data['name'],
                             data['path_with_namespace'])
 
     return msg
 
 
 if __name__ == "__main__":
-    b.run_threaded()
+    bot.run_threaded()
     app.run(host='0.0.0.0', port=10111)

@@ -1,0 +1,7 @@
+*.swp
+*.vim
+__pycache__/
+authmsg
+offset
+token
+chats

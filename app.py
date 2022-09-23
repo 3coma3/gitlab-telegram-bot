@@ -65,14 +65,11 @@ def webhook():
 
     print('DEBUG =================\n' + json.dumps(data, indent=2))
 
-    if 'object_kind' in data:
-        event = data['object_kind']
-    elif 'event_type' in data:
-        event = data['event_type']
-    elif 'event_name' in data:
-        event = data['event_name']
-    else:
-        event = '(could not detect the type)'
+    event = '(could not detect event type)'
+    for e in ['object_kind', 'event_type', 'event_name']:
+        if e in data:
+            event = data[e]
+            break
 
     def nofmt():
         return 'New event "*{0}*" without formmater, write one for me!\n```\n{1}```\n'\

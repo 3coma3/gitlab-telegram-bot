@@ -27,7 +27,7 @@ class GitlabBot(Bot):
         except:
             open('chats', 'w').write(json.dumps(self.chats))
 
-        self.send_to_all('Hi!')
+        self.send_to_all("I'm online \U0001F44B")
 
     def text_recv(self, txt, chatid):
         ''' registering chats '''
@@ -39,19 +39,19 @@ class GitlabBot(Bot):
 
         if txt == self.authmsg:
             if str(chatid) in self.chats:
-                self.reply(chatid, "\U0001F60E  boy, you already got the power.")
+                self.reply(chatid, "\U0001F913 you were already authorized, but thanks!")
             else:
-                self.reply(chatid, "\U0001F60E  Ok boy, you got the power !")
+                self.reply(chatid, "\U0001F60E ok, authorized!")
                 self.chats[chatid] = True
                 open('chats', 'w').write(json.dumps(self.chats))
 
-        elif txt == 'shutupbot':
+        elif txt == 'shutup':
+            self.reply(chatid, "Going quiet now. \U0001F634")
             del self.chats[chatid]
-            self.reply(chatid, "\U0001F63F Ok, take it easy\nbye.")
             open('chats', 'w').write(json.dumps(self.chats))
 
         else:
-            self.reply(chatid, "\U0001F612 I won't talk to you.")
+            self.reply(chatid, "\U0001F612 go away.")
 
     def send_to_all(self, msg):
         for c in self.chats:
@@ -386,7 +386,7 @@ def formatGroupMsg(data):
         msg = 'Group slug *"{0}"* has been renamed to *"{1}"*'.format(data['old_full_path'], data['full_path'])
 
     elif action == 'group_destroy':
-        msg = 'Group *"{0}"* has been removed'.format(data['full_path'])
+        msg = 'Group *"{0}"* has been deleted'.format(data['full_path'])
 
     return msg
 
@@ -432,12 +432,12 @@ def formatKeyMsg(data):
     action = data['event_name']
 
     if action == 'key_create':
-        msg = '*{0}* has created an SSH key with type {1}'\
+        msg = '*{0}* created an SSH key with type {1}'\
                 .format(data['username'],
                         re.search(r'^ssh-([^ ]+) ', data['key']).group(1))
 
     if action == 'key_destroy':
-        msg = '*{0}* has removed an SSH key' .format(data['username'])
+        msg = '*{0}* removed an SSH key' .format(data['username'])
 
     return msg
 
@@ -472,7 +472,7 @@ def formatProjectMsg(data):
                             data['path_with_namespace'])
 
     if action == 'project_destroy':
-        msg = msg + 'Project *{0}* has been destroyed\n\npath was: {1}\n'\
+        msg = msg + 'Project *{0}* has been removed\n\npath was: {1}\n'\
                     .format(data['name'],
                             data['path_with_namespace'])
 

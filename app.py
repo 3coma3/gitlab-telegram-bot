@@ -73,6 +73,8 @@ def webhook():
 
     if event == 'repository_update':
         msg = formatRepoUpdateMsg(data)
+    else:
+        msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
     b.send_to_all(msg)
     return jsonify({'status': 'ok'})

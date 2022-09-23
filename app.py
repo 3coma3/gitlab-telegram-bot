@@ -85,6 +85,12 @@ def webhook():
         msg = formatNoteMsg(data)
     elif event == 'wiki_page':
         msg = formatWikiMsg(data)
+    elif event == 'group_create':
+        msg = formatGroupMsg(data)
+    elif event == 'group_rename':
+        msg = formatGroupMsg(data)
+    elif event == 'group_destroy':
+        msg = formatGroupMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -323,6 +329,20 @@ def formatWikiMsg(data):
                 .format('(was) ' if action == 'delete' else '',\
                         attrs['title'],\
                         attrs['url'].replace("_", "\_"))
+
+    return msg
+
+def formatGroupMsg(data):
+    action = data['event_name']
+
+    if action == 'group_create':
+        msg = 'Group *"{0}"* has been created'.format(data['full_path'])
+
+    elif action == 'group_rename':
+        msg = 'Group slug *"{0}"* has been renamed to *"{1}"*'.format(data['old_full_path'], data['full_path'])
+
+    elif action == 'group_destroy':
+        msg = 'Group *"{0}"* has been removed'.format(data['full_path'])
 
     return msg
 

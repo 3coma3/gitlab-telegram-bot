@@ -77,6 +77,8 @@ def webhook():
         msg = formatPushMsg(data)
     elif event == 'tag_push':
         msg = formatTagPushMsg(data)
+    elif event == 'issue':
+        msg = formatIssueMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -163,8 +165,6 @@ def formatTagPushMsg(data):
 
     return msg
 
-def generateIssueMsg(data):
-    action = data['object_attributes']['action']
     if action == 'open':
         assignees = ''
         for assignee in data.get('assignees', []):
@@ -180,15 +180,45 @@ def generateIssueMsg(data):
     elif action == 'close':
         msg = '*{0}* issue closed by *{1}*:\n'\
             .format(data['project']['name'], data['user']['name'])
-    elif action == 'update':
-        assignees = ''
-        for assignee in data.get('assignees', []):
-            assignees += assignee['name'] + ' '
-        msg = '*{0}* issue assigned to *{1}*:\n'\
-            .format(data['project']['name'], assignees)
 
-    msg = msg + '[{0}]({1})'\
-        .format(data['object_attributes']['title'], data['object_attributes']['url'])
+# TODO: can be made more informative
+def formatIssueMsg(data):
+    msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
+
+    attrs = data['object_attributes']
+    action = attrs.get('action', 'open')
+
+    if action == 'open':
+        msg = msg + '*{0}* opened issue *{1}*\n'.format(data['user']['name'], attrs['id'])
+
+    elif action == 'reopen':
+        msg = msg + '*{0}* reopened issue *{1}*\n'.format(data['user']['name'], attrs['id'])
+
+    elif action == 'update':
+        msg = msg + '*{0}* updated issue *{1}*\n'.format(data['user']['name'], attrs['id'])
+        if 'assignees' in data['changes']:
+            msg = msg + 'Assignees were changed\n'
+
+        if 'labels' in data['changes']:
+            msg = msg + 'Labels were changed\n'
+
+        if 'discussion_locked' in data['changes']:
+            msg = msg + 'The discussion was locked \n'
+
+    elif action == 'close':
+        msg = msg + '*{0}* closed issue *{1}*\n'\
+                    .format(data['user']['name'],\
+                            attrs['id'])
+
+    msg = msg + '\n[{0}]({1})\n{2}\n\n'\
+                .format(attrs['title'],\
+                        attrs['url'].replace("_", "\_"),\
+                        attrs['description'])
+
+    if action != 'close':
+        msg = msg + '*labels:* ' + ", ".join([label['title'] for label in data.get('labels', [])]) + '\n'
+        msg = msg + '*asignees:* ' + ", ".join([asignee['name'] for asignee in data.get('assignees', [])]) + '\n'
+
     return msg
 
 

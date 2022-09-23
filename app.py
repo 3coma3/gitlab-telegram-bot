@@ -73,6 +73,8 @@ def webhook():
 
     if event == 'repository_update':
         msg = formatRepoUpdateMsg(data)
+    elif event == 'push':
+        msg = formatPushMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -121,14 +123,21 @@ def formatRepoUpdateMsg(data):
 
     return msg
 
-def generatePushMsg(data):
-    msg = '*{0} ({1}) - {2} new commits*\n'\
-        .format(data['project']['name'], data['project']['default_branch'], data['total_commits_count'])
+def formatPushMsg(data):
+    msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
+
+    msg = msg + '*{0}* pushed *{1}* new commits to the *{2}* branch\n'\
+                .format(data['user_name'],\
+                        data['total_commits_count'],\
+                        re.search(r'/([^/]+)$', data['ref']).group(1))
+
     for commit in data['commits']:
-        msg = msg + '----------------------------------------------------------------\n'
-        msg = msg + commit['message'].rstrip()
-        msg = msg + '\n' + commit['url'].replace("_", "\_") + '\n'
-    msg = msg + '----------------------------------------------------------------\n'
+        part = commit['message'].rstrip().partition('\n')
+        msg = msg + '\n[{0}]({1})\n{2}\n'\
+                    .format(part[0],\
+                            commit['url'].replace("_", "\_"),\
+                            part[2])
+
     return msg
 
 

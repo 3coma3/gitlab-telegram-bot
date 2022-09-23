@@ -83,6 +83,8 @@ def webhook():
         msg = formatIssueMsg(data)
     elif event == 'note':
         msg = formatNoteMsg(data)
+    elif event == 'wiki_page':
+        msg = formatWikiMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -307,16 +309,21 @@ def formatNoteMsg(data):
 
     return msg
 
-def generateCommentMsg(data):
-    ntype = data['object_attributes']['noteable_type']
-    if ntype == 'Commit':
-        msg = 'note to commit'
-    elif ntype == 'MergeRequest':
-        msg = 'note to MergeRequest'
-    elif ntype == 'Issue':
-        msg = 'note to Issue'
-    elif ntype == 'Snippet':
-        msg = 'note on code snippet'
+def formatWikiMsg(data):
+    msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
+
+    attrs = data['object_attributes']
+    action = attrs.get('action', 'create')
+
+    msg = msg + '*{0}* {1}d a Wiki entry\n\n'\
+                .format(data['user']['name'],\
+                        action)
+
+    msg = msg + '{0}[{1}]({2})'\
+                .format('(was) ' if action == 'delete' else '',\
+                        attrs['title'],\
+                        attrs['url'].replace("_", "\_"))
+
     return msg
 
 

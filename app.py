@@ -91,6 +91,18 @@ def webhook():
         msg = formatGroupMsg(data)
     elif event == 'group_destroy':
         msg = formatGroupMsg(data)
+    elif event == 'user_create':
+        msg = formatUserMsg(data)
+    elif event == 'user_rename':
+        msg = formatUserMsg(data)
+    elif event == 'user_destroy':
+        msg = formatUserMsg(data)
+    elif event == 'user_add_to_group':
+        msg = formatUserMsg(data)
+    elif event == 'user_update_for_group':
+        msg = formatUserMsg(data)
+    elif event == 'user_remove_from_group':
+        msg = formatUserMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -346,6 +358,41 @@ def formatGroupMsg(data):
 
     return msg
 
+def formatUserMsg(data):
+    action = data['event_name']
+
+    if action == 'user_create':
+        msg = 'User *{0}* has been created\n\nFull name: {1}\nEmail: {2}'\
+                .format(data['username'], data['name'], data['email'])
+
+    elif action == 'user_rename':
+        msg = 'User *{0}* has been renamed to *{1}*'.format(data['old_username'], data['username'])
+
+    elif action == 'user_destroy':
+        msg = 'User *{0}* has been deleted'.format(data['username'])
+
+    elif action == 'user_add_to_group':
+        msg = 'User *{0}* has been added to group *{1}* with {2} access'\
+                .format(data['user_name'],\
+                        data['group_path'],\
+                        data['group_access'])
+
+    elif action == 'user_remove_from_group':
+        msg = 'User *{0}* has been removed from group *{1}* - access was {2}'\
+                .format(data['user_name'],\
+                        data['group_path'],\
+                        data['group_access'])
+
+    elif action == 'user_update_for_group':
+        msg = 'User *{0}* has been updated for group *{1}* - access is {2}'\
+                .format(data['user_name'],\
+                        data['group_path'],\
+                        data['group_access'])
+
+    else:
+        msg = action
+
+    return msg
 
 def generateMergeRequestMsg(data):
     return 'new MergeRequest'

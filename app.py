@@ -2,6 +2,8 @@
 
 import json
 import re
+import atexit
+import signal
 
 from flask import Flask
 from flask import request
@@ -57,6 +59,10 @@ class GitlabBot(Bot):
 
 
 bot = GitlabBot()
+
+
+def exit():
+    bot.send_to_all("I'm going away for a while. Laters! \U0001F596")
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -474,5 +480,9 @@ def formatProjectMsg(data):
 
 
 if __name__ == "__main__":
+    atexit.register(exit)
+    signal.signal(signal.SIGTERM, exit)
+    signal.signal(signal.SIGINT, exit)
+
     bot.run_threaded()
     app.run(host='0.0.0.0', port=10111)

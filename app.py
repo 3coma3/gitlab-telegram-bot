@@ -81,6 +81,8 @@ def webhook():
         msg = formatMergeRequestMsg(data)
     elif event == 'issue':
         msg = formatIssueMsg(data)
+    elif event == 'note':
+        msg = formatNoteMsg(data)
     else:
         msg = 'New event "' + event + '" without formatter, write one for me!\n```\n' + json.dumps(data, indent=2) + '```'
 
@@ -265,6 +267,45 @@ def formatIssueMsg(data):
 
     return msg
 
+def formatNoteMsg(data):
+    msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
+
+    attrs = data['object_attributes']
+    nType = attrs['noteable_type']
+
+    if nType == 'Commit':
+        msg = msg + '{0} [commented]({1}) on commit [{2}]({3})\n\n{4}'\
+                  .format(data['user']['name'],\
+                          attrs['url'].replace("_", "\_"),\
+                          data['commit']['id'],\
+                          data['commit']['url'].replace("_", "\_"),\
+                          attrs['note'])
+
+    elif nType == 'MergeRequest':
+        msg = msg + '{0} [commented]({1}) on Merge Request [{2}]({3})\n\n{4}'\
+                  .format(data['user']['name'],\
+                          attrs['url'].replace("_", "\_"),\
+                          data['merge_request']['id'],\
+                          data['merge_request']['url'].replace("_", "\_"),\
+                          attrs['note'])
+
+    elif nType == 'Issue':
+        msg = msg + '{0} [commented]({1}) on issue [{2}]({3})\n\n{4}'\
+                  .format(data['user']['name'],\
+                          attrs['url'].replace("_", "\_"),\
+                          data['issue']['iid'],\
+                          data['issue']['url'].replace("_", "\_"),\
+                          attrs['note'])
+
+    elif nType == 'Snippet':
+        msg = msg + '{0} [commented]({1}) on code snippet [{2}]({3})\n\n{4}'\
+                  .format(data['user']['name'],\
+                          attrs['url'].replace("_", "\_"),\
+                          data['snippet']['id'],\
+                          re.search(r'^(.*)#[^#]+$', attrs['url']).group(1).replace("_", "\_"),\
+                          attrs['note'])
+
+    return msg
 
 def generateCommentMsg(data):
     ntype = data['object_attributes']['noteable_type']

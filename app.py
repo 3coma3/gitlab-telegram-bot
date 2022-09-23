@@ -77,6 +77,8 @@ def webhook():
         msg = formatPushMsg(data)
     elif event == 'tag_push':
         msg = formatTagPushMsg(data)
+    elif event == 'merge_request':
+        msg = formatMergeRequestMsg(data)
     elif event == 'issue':
         msg = formatIssueMsg(data)
     else:
@@ -165,21 +167,63 @@ def formatTagPushMsg(data):
 
     return msg
 
+# TODO: can be made more informative
+def formatMergeRequestMsg(data):
+    msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
+
+    attrs = data['object_attributes']
+    action = attrs.get('action', 'open')
+
     if action == 'open':
-        assignees = ''
-        for assignee in data.get('assignees', []):
-            assignees += assignee['name'] + ' '
-        msg = '*{0}* new issue for *{1}*:\n'\
-            .format(data['project']['name'], assignees)
+        msg = msg + '*{0}* requested to merge from *{1}* into *{2}*\n'\
+                    .format(data['user']['name'],
+                            attrs['source_branch'] if attrs['source_project_id'] == attrs['target_project_id']\
+                                                   else attrs['target']['path_with_namespace'],\
+                            attrs['target_branch'])
+
     elif action == 'reopen':
-        assignees = ''
-        for assignee in data.get('assignees', []):
-            assignees += assignee['name'] + ' '
-        msg = '*{0}* issue re-opened for *{1}*:\n'\
-            .format(data['project']['name'], assignees)
+        msg = msg + '*{0}* reopened the merge request *{1}* from *{2}* into *{3}*\n'\
+                    .format(data['user']['name'],\
+                            attrs['id'],\
+                            attrs['source_branch'] if attrs['source_project_id'] == attrs['target_project_id']\
+                                                   else attrs['target']['path_with_namespace'],\
+                            attrs['target_branch'])
+
+    elif action == 'update':
+        msg = msg + '*{0}* updated the merge request *{1}* from *{2}* into *{3}*\n'\
+                    .format(data['user']['name'],\
+                            attrs['id'],
+                            attrs['source_branch'] if attrs['source_project_id'] == attrs['target_project_id']\
+                                                   else attrs['target']['path_with_namespace'],\
+                            attrs['target_branch'])
+
+        if 'assignees' in data['changes']:
+            msg = msg + 'Assignees were changed\n'
+
+        if 'labels' in data['changes']:
+            msg = msg + 'Labels were changed\n'
+
+        if 'discussion_locked' in data['changes']:
+            msg = msg + 'The discussion was locked \n'
+
     elif action == 'close':
-        msg = '*{0}* issue closed by *{1}*:\n'\
-            .format(data['project']['name'], data['user']['name'])
+        msg = msg + '*{0}* closed the merge request *{1}* from *{2}* into *{3}*\n'\
+                    .format(data['user']['name'],\
+                            attrs['id'],\
+                            attrs['source_branch'] if attrs['source_project_id'] == attrs['target_project_id']\
+                                                   else attrs['target']['path_with_namespace'],\
+                            attrs['target_branch'])
+
+    msg = msg + '\n[{0}]({1})\n{2}\n'\
+                .format(attrs['title'],\
+                attrs['url'].replace("_", "\_"),\
+                attrs['description'])
+
+    if action != 'close':
+        msg = msg + '*labels:* ' + ", ".join([label['title'] for label in data.get('labels', [])]) + '\n'
+        msg = msg + '*asignees:* ' + ", ".join([asignee['name'] for asignee in data.get('assignees', [])]) + '\n'
+
+    return msg
 
 # TODO: can be made more informative
 def formatIssueMsg(data):

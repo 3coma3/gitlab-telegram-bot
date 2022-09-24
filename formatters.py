@@ -111,27 +111,29 @@ def formatMergeRequestMsg(data):
     attrs = data['object_attributes']
     action = attrs.get('action', 'open')
 
+    if attrs['source_project_id'] == attrs['target_project_id']:
+        source_branch = attrs['source_branch']
+    else:
+        source_branch = attrs['target']['path_with_namespace']
+
     if action == 'open':
         msg += '*{0}* requested to merge from *{1}* into *{2}*\n'\
                .format(data['user']['name'],
-                       attrs['source_branch'] if attrs['source_project_id'] == attrs['target_project_id']
-                                               else attrs['target']['path_with_namespace'],
+                       source_branch,
                        attrs['target_branch'])
 
     elif action == 'reopen':
-        msg += '*{0}* reopened the merge request *{1}* from *{2}* into *{3}*\n'\
+        msg += '*{0}* reopened a merge request *{1}* from *{2}* into *{3}*\n'\
                .format(data['user']['name'],
                        attrs['id'],
-                       attrs['source_branch'] if attrs['source_project_id'] == attrs['target_project_id']
-                                               else attrs['target']['path_with_namespace'],
+                       source_branch,
                        attrs['target_branch'])
 
     elif action == 'update':
-        msg += '*{0}* updated the merge request *{1}* from *{2}* into *{3}*\n'\
+        msg += '*{0}* updated a merge request *{1}* from *{2}* into *{3}*\n'\
                .format(data['user']['name'],
                        attrs['id'],
-                       attrs['source_branch'] if attrs['source_project_id'] == attrs['target_project_id']
-                                               else attrs['target']['path_with_namespace'],
+                       source_branch,
                        attrs['target_branch'])
 
         if 'assignees' in data['changes']:
@@ -144,11 +146,10 @@ def formatMergeRequestMsg(data):
             msg += '• The discussion was locked \n'
 
     elif action == 'close':
-        msg += '*{0}* closed the merge request *{1}* from *{2}* into *{3}*\n'\
+        msg += '*{0}* closed a merge request *{1}* from *{2}* into *{3}*\n'\
                .format(data['user']['name'],
                        attrs['id'],
-                       attrs['source_branch'] if attrs['source_project_id'] == attrs['target_project_id']
-                                               else attrs['target']['path_with_namespace'],
+                       source_branch,
                        attrs['target_branch'])
 
     msg += '\n[{0}]({1})\n{2}\n'\
@@ -157,8 +158,10 @@ def formatMergeRequestMsg(data):
                    attrs['description'])
 
     if action != 'close':
-        msg += '*labels:* ' + ", ".join([label['title'] for label in data.get('labels', [])]) + '\n'
-        msg += '*asignees:* ' + ", ".join([asignee['name'] for asignee in data.get('assignees', [])]) + '\n'
+        msg += '*labels:* ' + ", ".join([label['title'] for label in
+                                         data.get('labels', ['none'])]) + '\n'
+        msg += '*asignees:* ' + ", ".join([asignee['name'] for asignee in
+                                           data.get('assignees', ['none'])]) + '\n'
 
     return msg
 

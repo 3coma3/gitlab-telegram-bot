@@ -58,17 +58,23 @@ def formatRepoUpdateMsg(data):
 def formatPushMsg(data):
     msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
 
-    msg += '*{0}* pushed *{1}* new commits to the *{2}* branch\n'\
-           .format(data['user_name'],
-                   data['total_commits_count'],
-                   re.search(r'/([^/]+)$', data['ref']).group(1))
+    # assume 0 commits push is a reset
+    if data['total_commits_count'] == 0:
+        msg += '*{0}* performed a reset at branch *{2}*\n'\
+                .format(data['user_name'],
+                        re.search(r'/([^/]+)$', data['ref']).group(1))
+    else:
+        msg += '*{0}* pushed *{1}* new commits to branch *{2}*\n'\
+                .format(data['user_name'],
+                        data['total_commits_count'],
+                        re.search(r'/([^/]+)$', data['ref']).group(1))
 
     for commit in data['commits']:
         part = commit['message'].rstrip().partition('\n')
         msg += '\n[{0}]({1})\n{2}\n'\
-                .format(part[0],
-                        commit['url'].replace("_", "\_"),
-                        part[2])
+               .format(part[0],
+                       commit['url'].replace("_", "\_"),
+                       part[2])
 
     return msg
 

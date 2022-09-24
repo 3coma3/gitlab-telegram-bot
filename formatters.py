@@ -13,12 +13,12 @@ def formatRepoUpdateMsg(data):
 
             if refType == 'tags':
                 if not int('0x' + change['before'], 0):
-                    msg = 'tagged object [{0}]({1}/-/commit/{0}) with tag *"{2}"*\n'\
+                    msg = 'tagged [{0}]({1}/-/commit/{0}) with tag *"{2}"*\n'\
                           .format(change['after'],
                                   data['project']['web_url'].replace("_", "\_"),
                                   refName)
                 else:
-                    msg = 'removed tag *"{0}"* from object [{1}]({2}/-/commit/{1})\n'\
+                    msg = 'removed tag *"{0}"* from [{1}]({2}/-/commit/{1})\n'\
                           .format(refName,
                                   change['after'],
                                   data['project']['web_url']).replace("_", "\_")
@@ -88,14 +88,14 @@ def formatTagPushMsg(data):
     refName = re.search(r'/([^/]+)$', data['ref']).group(1)
 
     if not int('0x' + data['before'], 0):
-        msg += '*{0}* tagged object [{1}]({2}) with tag *"{3}"*\n\n'\
+        msg += '*{0}* tagged [{1}]({2}) with tag *"{3}"*\n\n'\
                .format(data['user_name'],
                        data['checkout_sha'],
                        data['commits'][0]['url'].replace("_", "\_"),
                        refName)
 
     else:
-        msg += '*{0}* removed tag *"{1}"* from object [{2}]({3}/-/commit/{2})\n'\
+        msg += '*{0}* removed tag *"{1}"* from [{2}]({3}/-/commit/{2})\n'\
                .format(data['user_name'],
                        refName,
                        data['before'],

@@ -51,8 +51,9 @@ class GitlabBot(Bot):
             self.reply(chatid, "\U0001F612 go away.")
 
     def send_to_all(self, msg):
-        for c in self.chats:
-            self.reply(c, msg)
+        if msg:
+            for c in self.chats:
+                self.reply(c, msg)
 
 
 bot = GitlabBot()

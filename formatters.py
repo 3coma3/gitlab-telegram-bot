@@ -3,46 +3,54 @@
 import re
 
 
-# generic event called from webooks set by admins (info seems to lack)
+# generic event called from webhooks set by admins (lacking info)
 def formatRepoUpdateMsg(data):
-    msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
-
-    msg += '*{0}* {1}'\
-           .format(data['user_name'],
-                   'issued multiple changes\n\n' if len(data['changes']) > 1 else '')
-
+    changes = []
     for change in data['changes']:
         if 'ref' in change:
             refType = re.search(r'/([^/]+)/[^/]+$', change['ref']).group(1)
             refName = re.search(r'/([^/]+)$', change['ref']).group(1)
 
-            if refType == 'tags' and len(data['changes']) > 1:
+            if refType == 'tags':
                 if not int('0x' + change['before'], 0):
-                    msg += 'tagged object [{0}]({1}/-/commit/{0}) with tag *"{2}"*\n'\
-                           .format(change['after'],
-                                   data['project']['web_url'].replace("_", "\_"),
-                                   refName)
+                    msg = 'tagged object [{0}]({1}/-/commit/{0}) with tag *"{2}"*\n'\
+                          .format(change['after'],
+                                  data['project']['web_url'].replace("_", "\_"),
+                                  refName)
                 else:
-                    msg += 'removed tag *"{0}"* from object [{1}]({2}/-/commit/{1})\n'\
-                           .format(refName,
-                                   change['after'],
-                                   data['project']['web_url']).replace("_", "\_")
+                    msg = 'removed tag *"{0}"* from object [{1}]({2}/-/commit/{1})\n'\
+                          .format(refName,
+                                  change['after'],
+                                  data['project']['web_url']).replace("_", "\_")
 
             elif refType == 'heads':
                 if not int('0x' + change['before'], 0):
-                    msg += 'created branch [{0}]({1}/-/tree/{0})\n'\
-                           .format(refName,
-                                   data['project']['web_url']).replace("_", "\_")
+                    msg = 'created branch [{0}]({1}/-/tree/{0})\n'\
+                          .format(refName,
+                                  data['project']['web_url']).replace("_", "\_")
 
                 elif not int('0x' + change['after'], 0):
-                    msg += 'removed branch *"{0}"*\n'.format(refName)
+                    msg = 'removed branch *"{0}"*\n'.format(refName)
 
-                # can't tell apart other branch modifications, so ignore
+                # ignore head changes non differentiable from normal commits
                 else:
-                    pass
+                    continue
 
             else:
-                msg += 'update with unknown ref type "{0}"\n'.format(refType)
+                msg = 'update with unknown ref type "{0}"\n'.format(refType)
+
+            changes.append(msg)
+
+    msg = None
+
+    if len(changes):
+        msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
+
+        msg += '*{0}* {1}'\
+               .format(data['user_name'],
+                       'issued multiple changes\n\n' if len(changes) > 1 else '')
+
+        msg += '\n'.join(changes)
 
     return msg
 
@@ -65,6 +73,9 @@ def formatPushMsg(data):
     return msg
 
 
+# note that if you enable tag push notifications both side wide (handled by
+# formatRepoUpdateMsg) and per repo (handled here), you'll get notifications
+# twice for this event until you disable one of the webhooks
 def formatTagPushMsg(data):
     msg = '*{0}*\n\n'.format(data['project']['path_with_namespace'])
 

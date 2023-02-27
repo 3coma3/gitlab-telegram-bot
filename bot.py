@@ -57,19 +57,21 @@ class Bot:
                 if u in update:
                     self.msg_recv(update[u])
 
-        open('offset', 'w').write('%s' % self.offset)
+    def get_chat(self, msg):
+        c = msg.get('chat', msg)
+        return {
+            'id': c['id'],
+            'type': c['type'],
+            'name': c.get('username', c.get('name', c.get('title')))
+        }
 
-    def get_to_from_msg(self, msg):
-        to = ''
-        try:
-            to = msg['chat']['id']
-        except:
-            to = ''
-        return to
+    def get_chat_admins(self, c):
+        r = self.botq('getChatAdministrators', {'chat_id': c['id']})
+        return r['result']
 
     def reply(self, to, msg):
         if type(to) not in [int, str]:
-            to = self.get_to_from_msg(to)
+            to = self.get_chat(to)['id']
 
         return self.botq('sendMessage',
                          {

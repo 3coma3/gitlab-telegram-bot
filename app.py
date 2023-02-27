@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import atexit
+import re
 import signal
+import time
 
 from flask import Flask, request, jsonify
 
@@ -132,30 +134,327 @@ class GitlabBot(Bot):
         self.update_chat(c)
         return c
 
-    def text_recv(self, txt, chatid):
-        ''' registering chats '''
-        txt = txt.strip()
-        if txt.startswith('/'):
-            txt = txt[1:]
+    def msg_recv(self, m):
+        chat = self.get_chat(m)
 
-        print(txt)
+        if 'text' in m:
+            self.txt_recv(m['text'], chat, m.get('from', m.get('sender_chat', '')))
+            self.save_config()
 
-        if txt == self.authmsg:
-            if str(chatid) in self.chats:
-                self.reply(chatid, "\U0001F913 you were already authorized, but thanks!")
+        elif 'new_chat_participant' in m\
+             and m['new_chat_participant']['username'] == self.me['username']:
+            self.cache_chat(chat)
+
+    def txt_recv(self, txt, chat, from_):
+        args = (txt[1:] if txt.startswith('/') else txt).strip().split()
+        cmd = re.sub(r'[^@]\([@][^ ]+\)$', '', args.pop(0))
+
+        def target_chat(cid=None):
+            if not cid:
+                return self.cache_chat(chat)
+
+            if type(cid) is list:
+                cid = cid[0]
+
+            key = 'id'
+            if type(cid) is str:
+                if cid[1:].isdecimal():
+                    cid = int(cid)
+                else:
+                    key = 'name'
+
+            return next((c for c in self.chats if c[key] == cid), None)
+
+        def bot_owner():
+            return any(owner['id'] == from_['id'] for owner in self.owners)
+
+        def chat_owner(chat):
+            return self.cache_chat(chat)['owner']['id'] == from_['id']
+
+        def chat_admin(chat):
+            return any(admin['id'] == from_['id']
+                       for admin in self.cache_chat(chat)['admins'])
+
+        def is_privileged(chat):
+            return bot_owner() or chat_owner(chat) or chat_admin(chat)
+
+        def check_args(min=0, max=0):
+            if len(args) < min:
+                self.reply(chat, msg('arg_few'))
+            elif len(args) > max:
+                self.reply(chat, msg('arg_extra', ' '.join(args)))
             else:
-                self.reply(chatid, "\U0001F60E ok, authorized!")
-                self.chats[chatid] = True
-                open('chats', 'w').write(json.dumps(self.chats))
+                return True
 
-        elif txt == 'shutup':
-            self.reply(chatid, "Going quiet now. \U0001F634")
-            del self.chats[chatid]
-            open('chats', 'w').write(json.dumps(self.chats))
+        def check_owner_cmd(min=0, max=0):
+            if not bot_owner():
+                self.reply(chat, msg('chat_unauth'))
+
+            elif chat['type'] != 'private':
+                self.reply(chat, msg('cmd_private'))
+
+            else:
+                return check_args(min, max)
+
+        if cmd == 'lsotp':
+            if check_owner_cmd():
+                self.reply(chat, msg('otp_list', dumpjson(self.otp)))
+
+        elif cmd == 'getotp':
+            if not check_owner_cmd(max=2):
+                return
+
+            type_ = lifetime = None
+            for arg in args:
+                if not type_ and arg in ['owner', 'private', 'group', 'channel']:
+                    type_ = arg
+
+                elif not lifetime and arg.isdecimal():
+                    if (1 <= int(arg) <= 1440):
+                        lifetime = int(arg)
+                        continue
+                    return self.reply(chat, msg('otp_bad_lifetime', 1, 1440))
+
+                else:
+                    return self.reply(chat, msg('arg_extra', arg))
+
+            secret = new_secret(8)
+            otp = {
+                'secret': digest(secret),
+                'type': type_ or self.defaults.get('otp_type', 'private'),
+                'refresh': ts(lifetime or self.defaults.get('otp_lifetime', 1))
+            }
+            self.otp.append(otp)
+            self.reply(chat, msg('otp_new', secret, otp['type'],
+                                 tdif(otp['refresh'])))
+
+        elif cmd == 'delotp':
+            if not check_owner_cmd(min=1, max=1):
+                return
+
+            r = strange(args[0])
+            if not r:
+                return self.reply(chat, msg('arg_extra', args[0]))
+
+            n = 0
+            for i in sorted(r, reverse=True):
+                if i < len(self.otp):
+                    n += 1
+                    del self.otp[i]
+            self.reply(chat, msg('otp_remove', n, '' if n == 1 else 's'))
+
+        elif cmd == 'flushotp':
+            if check_owner_cmd():
+                self.otp.clear()
+                self.reply(chat, msg('otp_flush'))
+
+        elif cmd == 'lschg':
+            if check_owner_cmd():
+                self.reply(chat, msg('chg_list', dumpjson(self.challenges)))
+
+        elif cmd == 'delchg':
+            if not check_owner_cmd(min=1, max=1):
+                return
+
+            r = strange(args[0])
+            if not r:
+                return self.reply(chat, msg('arg_extra', args[0]))
+
+            n = 0
+            for i in sorted(r, reverse=True):
+                if i < len(self.challenges):
+                    n += 1
+                    del self.challenges[i]
+            self.reply(chat, msg('chg_remove', n, '' if n == 1 else 's'))
+
+        elif cmd == 'flushchg':
+            if check_owner_cmd():
+                self.challenges.clear()
+                self.reply(chat, msg('chg_flush'))
+
+        elif cmd == 'lsowner':
+            if check_owner_cmd():
+                self.reply(chat,
+                           msg('owner_list', dumpjson(self.owners)))
+
+        elif cmd == 'delowner':
+            if not check_owner_cmd(min=1, max=1):
+                return
+
+            r = strange(args[0])
+            if not r:
+                return self.reply(chat, msg('arg_extra', args[0]))
+
+            n = 0
+            for i in sorted(r, reverse=True):
+                if i < len(self.owners):
+                    n += 1
+                    del self.owners[i]
+            self.reply(chat, msg('owner_remove', n, '' if n == 1 else 's'))
+
+        elif cmd == 'start':
+            if not check_args(max=1):
+                return
+
+            tc = target_chat(args)
+            if not tc:
+                return self.reply(chat, msg('chat_unknown'))
+
+            if not is_privileged(tc):
+                return self.reply(chat, msg('chat_unauth'))
+
+            if (tc['authorized']):
+                return self.reply(chat, msg('chat_aauth'))
+
+            if bot_owner():
+                tc['authorized'] = True
+                tc['quiet'] = False
+                return self.reply(chat, msg('chat_auth'))
+
+            chg = next((c for c in self.challenges
+                        if c['cid'] == tc['id'] and c['uid'] == from_['id']),
+                       None)
+            if not chg:
+                chg = {
+                    'cid': tc['id'],
+                    'uid': from_['id'],
+                    'refresh': ts(self.defaults.get('challenge_lifetime', 1))
+                }
+                self.challenges.append(chg)
+
+            self.reply(chat, msg('chg_new', tdif(chg['refresh'])))
+
+        elif cmd == 'auth':
+            if not check_args(min=1, max=2):
+                return
+
+            cid = secret = None
+            for arg in args:
+                if arg.isdecimal() and not cid:
+                    cid = arg
+                    continue
+
+                elif not secret:
+                    secret = digest(arg)
+                    continue
+
+                else:
+                    return self.reply(chat, msg('arg_extra', arg))
+
+            tc = target_chat(cid)
+            if not tc:
+                return self.reply(chat, msg('chat_unknown'))
+
+            otp = next((t for t in self.otp
+                        if t['secret'] == secret and t['type'] == 'owner'),
+                       None)
+
+            chg = next((c for c in self.challenges
+                        if c['cid'] == tc['id'] and c['uid'] == from_['id']),
+                       None)
+
+            if (tc['id'] == chat['id'] and (otp or secret == digest(self.config['api_token']))):
+                if bot_owner():
+                    return self.reply(chat, msg('bot_aauth'))
+                if otp:
+                    otp['refresh'] = 0
+                if chg:
+                    chg['refresh'] = 0
+                if tc['type'] != 'private':
+                    tc['authorized'] = True
+                self.owners.append(self.user_entry(from_))
+                return self.reply(chat, msg('bot_auth'))
+
+            if tc['authorized']:
+                return self.reply(chat, msg('chat_aauth'))
+
+            if not chg:
+                return self.reply(chat, msg('chg_unknown'))
+
+            otp = next((t for t in self.otp
+                        if t['secret'] == secret and t['type'] == tc['type']),
+                       None)
+            if not otp:
+                return self.reply(chat, msg('otp_bad_type'))
+
+            tc['authorized'] = True
+            tc['quiet'] = False
+            otp['refresh'] = 0
+            chg['refresh'] = 0
+            return self.reply(chat, msg('chat_auth'))
+
+        elif cmd == 'stop':
+            if not check_args(max=1):
+                return
+
+            tc = target_chat(args)
+            if not tc:
+                return self.reply(chat, msg('chat_unknown'))
+
+            if tc['authorized'] and is_privileged(tc):
+                tc['authorized'] = False
+                tc['quiet'] = True
+                tc['refresh'] = ts(10)
+                self.reply(chat, msg('chat_deauth'))
+                if tc['type'] != 'private':
+                    self.reply(chat, msg('chat_leave', tdif(tc['refresh'])))
+            elif bot_owner():
+                self.reply(chat, msg('sorry_owner'))
+            else:
+                self.reply(chat, msg('chat_unauth'))
+
+        elif cmd == 'lschat':
+            if chat['type'] != 'private':
+                return self.reply(chat, msg('cmd_private'))
+
+            if not check_args():
+                return
+
+            chats = self.chats if bot_owner() else\
+                [c for c in self.chats if chat_owner(c) or chat_admin(c)]
+
+            self.reply(chat, msg('chat_list', dumpjson(chats)))
+
+        elif cmd == 'quiet':
+            if not check_args(max=1):
+                return
+
+            tc = target_chat(args)
+            if not tc:
+                return self.reply(chat, msg('chat_unknown'))
+
+            if not (tc['authorized'] and is_privileged(tc)):
+                if bot_owner():
+                    self.reply(chat, msg('sorry_owner'))
+                else:
+                    self.reply(chat, msg('chat_unauth'))
+            else:
+                tc['quiet'] = True
+                self.reply(chat, msg('chat_quiet'))
+
+        elif cmd == 'speak':
+            if not check_args(max=1):
+                return
+
+            tc = target_chat(args)
+            if not tc:
+                return self.reply(chat, msg('chat_unknown'))
+
+            if not (tc['authorized'] and is_privileged(tc)):
+                if bot_owner():
+                    self.reply(chat, msg('sorry_owner'))
+                else:
+                    self.reply(chat, msg('chat_unauth'))
+            else:
+                tc['quiet'] = False
+                self.reply(chat, msg('ok'))
 
         else:
-            self.reply(chatid, "\U0001F612 go away.")
+            if is_privileged(chat):
+                return self.reply(chat, msg('cmd_unknown'))
 
+            else:
+                return self.reply(chat, msg('chat_unauth'))
 
 
 bot = GitlabBot()

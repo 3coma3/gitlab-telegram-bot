@@ -15,6 +15,76 @@ class GitlabBot(Bot):
         super(GitlabBot, self).__init__()
 
         self.send_to_all("I'm online \U0001F44B")
+        self.owners = self.state.get('owners', [])
+        self.chats = self.state.get('chats', [])
+        self.otp = self.state.get('otp', [])
+        self.state['owners'] = self.owners
+        self.state['chats'] = self.chats
+        self.state['otp'] = self.otp
+
+        self.challenges = []
+
+    def user_entry(self, u):
+        return {'id': u['id'],
+                'name': u.get('username', u.get('name', u.get('title', '')))}
+
+    def update_chat(self, c):
+        c['admins'] = []
+
+        if c['type'] == 'private':
+            c['owner'] = self.user_entry(c)
+            return
+
+        for a in self.get_chat_admins(c):
+            if (a['status'] == 'administrator' and a['can_promote_members']):
+                c['admins'].append = self.user_entry(a['user'])
+
+            elif a['status'] == 'creator':
+                c['owner'] = self.user_entry(a['user'])
+
+    def refresh(self):
+        save_config = False
+
+        def iter(f, xs):
+            for i, x in enumerate(xs):
+                if f(x):
+                    del xs[i]
+                    nonlocal save_config
+                    save_config = True
+
+        def expired(o):
+            return int(time.time()) > o['refresh']
+
+        def chat(c):
+            if (not c['authorized']) and expired(c):
+                self.botq('leaveChat', {'chat_id': c['id']})
+                return True
+
+            if (not c['authorized']) or expired(c):
+                self.update_chat(c)
+                if c['authorized']:
+                    c['refresh'] = ts(self.defaults.get('chat_lifetime', 1))
+                nonlocal save_config
+                save_config = True
+
+        iter(expired, self.challenges)
+        iter(expired, self.otp)
+        iter(chat, self.chats)
+
+        if save_config:
+            self.save_config()
+
+    def cache_chat(self, c):
+        cached = next((cc for cc in self.chats if cc['id'] == c['id']), None)
+        if cached:
+            return cached
+
+        c['refresh'] = ts(self.defaults.get('chat_lifetime', 1))
+        c['authorized'] = False
+        c['quiet'] = True
+        self.chats.append(c)
+        self.update_chat(c)
+        return c
 
     def text_recv(self, txt, chatid):
         ''' registering chats '''

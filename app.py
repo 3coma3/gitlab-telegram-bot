@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 
 from bot import Bot
 from formatters import eventFormatters as fmt
+from util import digest, dumpjson, new_secret, strange, tdif, timestamp as ts
 
 
 class GitlabBot(Bot):

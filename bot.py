@@ -29,9 +29,6 @@ class Bot:
         params = params if params else {}
         return requests.post(url, params).json()
 
-    def msg_recv(self, msg):
-        ''' method to override '''
-        pass
     def save_config(self):
         try:
             with open(self.configFile, "w") as cf:
@@ -41,30 +38,24 @@ class Bot:
         except:
             raise Exception("Couldn't write configuration")
 
-    def text_recv(self, txt, chatid):
-        ''' method to override '''
+    def refresh(self):
+        ''' abstract'''
         pass
 
-    def updates(self):
-        r = self.botq('getUpdates', {'offset': self.offset})
+    def msg_recv(self, m):
+        ''' abstract'''
+        pass
 
-        for up in r['result']:
-            self.offset = up['update_id'] + 1
+    def get_updates(self):
+        r = self.botq('getUpdates', {'offset': self.state.get('offset', 0)})
 
-            if 'message' in up:
-                self.msg_recv(up['message'])
-            elif 'edited_message' in up:
-                self.msg_recv(up['edited_message'])
-            else:
-                # not a valid message
-                break
+        for update in r['result']:
+            self.state['offset'] = update['update_id'] + 1
 
-            try:
-                txt = up['message']['text']
-                self.text_recv(txt, self.get_to_from_msg(up['message']))
-
-            except:
-                pass
+            for u in [p + t for p in ['', 'edited']
+                      for t in ['message', 'channel_post']]:
+                if u in update:
+                    self.msg_recv(update[u])
 
         open('offset', 'w').write('%s' % self.offset)
 
@@ -80,13 +71,19 @@ class Bot:
         if type(to) not in [int, str]:
             to = self.get_to_from_msg(to)
 
-        resp = self.botq('sendMessage', {'chat_id': to, 'text': msg, 'disable_web_page_preview': True, 'parse_mode': 'Markdown'})
-        return resp
+        return self.botq('sendMessage',
+                         {
+                             'chat_id': to,
+                             'text': msg,
+                             'disable_web_page_preview': True,
+                             'parse_mode': 'Markdown'
+                         })
 
     def run(self):
         self.running = True
         while self.running:
-            self.updates()
+            self.get_updates()
+            self.refresh()
             time.sleep(1)
 
     def run_threaded(self):

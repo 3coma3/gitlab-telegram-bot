@@ -164,6 +164,10 @@ app = Flask(__name__)
 
 @app.route("/", methods=['GET', 'POST'])
 def webhook():
+
+    if (request.headers.get('X-Gitlab-Token', None) != bot.config.get('svc_token', None)):
+        return jsonify({'status': 'unauthorized'}), 401
+
     data = request.json
 
     print('DEBUG =================\n' + json.dumps(data, indent=2))

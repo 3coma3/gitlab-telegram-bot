@@ -194,4 +194,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, exit)
 
     bot.run_threaded()
-    app.run(host='0.0.0.0', port=10111)
+    [host, port] = bot.config.get('listen', '0.0.0.0:10111').split(':')
+    app.run(host=host, port=port)

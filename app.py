@@ -170,7 +170,7 @@ def webhook():
 
     data = request.json
 
-    print('DEBUG =================\n' + json.dumps(data, indent=2))
+    # print('DEBUG =================\n' + dumpjson(data))
 
     event = '(could not detect event type)'
     for e in ['object_kind', 'event_type', 'event_name']:

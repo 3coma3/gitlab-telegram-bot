@@ -3,7 +3,7 @@
 import atexit
 import signal
 
-from flask import Flask, request, json, jsonify
+from flask import Flask, request, jsonify
 
 from bot import Bot
 from formatters import eventFormatters as fmt
@@ -11,18 +11,8 @@ from formatters import eventFormatters as fmt
 
 class GitlabBot(Bot):
     def __init__(self):
-        try:
-            self.authmsg = open('authmsg').read().strip()
-        except:
-            raise Exception("The authorization messsage file is invalid")
-
+        self.configFile = 'config.json'
         super(GitlabBot, self).__init__()
-        self.chats = {}
-        try:
-            chats = open('chats', 'r').read()
-            self.chats = json.loads(chats)
-        except:
-            open('chats', 'w').write(json.dumps(self.chats))
 
         self.send_to_all("I'm online \U0001F44B")
 
